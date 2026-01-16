@@ -7,6 +7,14 @@
 namespace ecn_common
 {
 
+const auto winname{"Color detector - segmentation"};
+
+void trackbar_cb(int pos, void* val)
+{
+  auto val_int{static_cast<int*>(val)};
+  *val_int = pos;
+}
+
 using std::vector;
 
 void ColorDetector::detectColor(int r, int g, int b)
@@ -44,15 +52,25 @@ void ColorDetector::detectColor(int r, int g, int b)
   }
 }
 
+void ColorDetector::setSaturationValue(int sat, int value)
+{
+  if(show_segment_)
+  {
+    cv::setTrackbarPos("Saturation", winname, sat);
+    cv::setTrackbarPos("Value", winname, value);
+  }
+  sat_ = sat; val_ = value;
+}
+
 void ColorDetector::showSegmentation()
 {
   show_segment_ = true;
   // init display
-  cv::namedWindow("Color detector - range");
-  cv::createTrackbar( "Saturation", "Color detector - range", nullptr, 255);
-  cv::createTrackbar( "Value", "Color detector - range", nullptr, 255);
-  cv::setTrackbarPos("Saturation", "Color detector - range", 130);
-  cv::setTrackbarPos("Value", "Color detector - range", 95);
+  cv::namedWindow(winname);
+  cv::createTrackbar( "Saturation", winname, nullptr, 255, trackbar_cb, &sat_);
+  cv::createTrackbar( "Value", winname, nullptr, 255, trackbar_cb, &val_);
+  cv::setTrackbarPos("Saturation", winname, 130);
+  cv::setTrackbarPos("Value", winname, 95);
 }
 
 
@@ -68,8 +86,8 @@ std::vector<cv::Point> ColorDetector::findMainContour(const cv::Mat &_im)
   cv::cvtColor(_im, img_, cv::COLOR_BGR2HSV);
   cv::GaussianBlur(img_, img_, cv::Size(9,9), 2);
 
-  sat_ = cv::getTrackbarPos("Saturation", "Color detector - range");
-  val_ = cv::getTrackbarPos("Value", "Color detector - range");
+  sat_ = cv::getTrackbarPos("Saturation", winname);
+  val_ = cv::getTrackbarPos("Value", winname);
 
   // segment for detection of given RGB (from Hue)
   cv::inRange(img_, cv::Scalar(hue_[0], sat_, val_),
@@ -84,7 +102,7 @@ std::vector<cv::Point> ColorDetector::findMainContour(const cv::Mat &_im)
 
   if(show_segment_)
   {
-    cv::imshow("Color detector - range", seg1_);
+    cv::imshow(winname, seg1_);
     if(!show_output_)
       cv::waitKey(1);
   }
@@ -128,17 +146,9 @@ std::vector<cv::Point> ColorDetector::findMainContour(const cv::Mat &_im)
   return {};
 }
 
-
-bool ColorDetector::process(const cv::Mat &_im)
-{
-  cv::Mat im_proc;
-  return process(_im, im_proc, false);
-}
-
-
 bool ColorDetector::process(const cv::Mat &_im, cv::Mat &_im_processed, bool write_output)
 {
-  auto contour = findMainContour(_im);
+  const auto contour{findMainContour(_im)};
 
   if(!contour.size())
   {
@@ -189,7 +199,7 @@ bool ColorDetector::process(const cv::Mat &_im, cv::Mat &_im_processed, bool wri
 
   if(show_output_)
   {
-    cv::imshow("Color detector output",_im_processed);
+    cv::imshow("Color detector - output", _im_processed);
     cv::waitKey(1);
   }
   return contour.size();
